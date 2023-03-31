@@ -1,0 +1,7 @@
+*.yaml
+!example-config.yaml
+!.pre-commit-config.yaml
+
+*.db*
+*.log*
+/accounts/
