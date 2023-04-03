@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/deltachat/deltachat-rpc-client-go/deltachat"
 	log "maunium.net/go/maulogger/v2"
 
 	"maunium.net/go/mautrix/id"
@@ -23,11 +24,11 @@ const (
 type ChatType uint
 
 const (
-	ChatUndefined   ChatType = 0
-	ChatSingle      ChatType = 100
-	ChatGroup       ChatType = 120
-	ChatMailinglist ChatType = 140
-	ChatBroadcast   ChatType = 160
+	ChatUndefined   ChatType = ChatType(deltachat.CHAT_TYPE_UNDEFINED)
+	ChatSingle      ChatType = ChatType(deltachat.CHAT_TYPE_SINGLE)
+	ChatGroup       ChatType = ChatType(deltachat.CHAT_TYPE_GROUP)
+	ChatMailinglist ChatType = ChatType(deltachat.CHAT_TYPE_MAILINGLIST)
+	ChatBroadcast   ChatType = ChatType(deltachat.CHAT_TYPE_BROADCAST)
 )
 
 type ChatID uint64

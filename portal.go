@@ -261,6 +261,11 @@ func (portal *Portal) Update() error {
 		return nil
 	}
 
+	// ignore any chats that are not pure Delta Chat
+	if database.ChatType(snap.ChatType) == database.ChatUndefined {
+		return nil
+	}
+
 	// FIXME we should use Matrix invites to handle this
 	if snap.IsContactRequest {
 		err := chat.Accept()
