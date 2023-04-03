@@ -70,8 +70,7 @@ func (portal *Portal) MarkEncrypted() {
 }
 
 func (portal *Portal) IsPrivateChat() bool {
-	// FIXME stub
-	return true
+	return portal.Type == database.ChatSingle
 }
 
 func (portal *Portal) ReceiveMatrixEvent(user bridge.User, evt *event.Event) {
@@ -81,11 +80,25 @@ func (portal *Portal) ReceiveMatrixEvent(user bridge.User, evt *event.Event) {
 }
 
 func (portal *Portal) MainIntent() *appservice.IntentAPI {
-	/*
-		if portal.IsPrivateChat()  {
-			return portal.bridge.GetPuppetByID(portal.OtherUserID).DefaultIntent()
+	if portal == nil {
+		return portal.bridge.Bot
+	}
+
+	if portal.IsPrivateChat() {
+		chat, _ := portal.Chat()
+
+		contacts, _ := chat.Contacts()
+		if contacts == nil || len(contacts) == 0 {
+			return portal.bridge.Bot
 		}
-	*/
+
+		puppetID := database.PuppetID{
+			AccountID: portal.AccountID,
+			ContactID: database.ContactID(contacts[0].Id),
+		}
+
+		return portal.bridge.GetPuppetByID(puppetID).DefaultIntent()
+	}
 
 	return portal.bridge.Bot
 }
@@ -245,6 +258,11 @@ func (portal *Portal) Update() error {
 		return err
 	}
 
+	// never create a Matrix room for Device Chat or Saved Messages
+	if snap.IsDeviceChat || snap.IsSelfTalk {
+		return nil
+	}
+
 	// FIXME we should use Matrix invites to handle this
 	if snap.IsContactRequest {
 		err := chat.Accept()
@@ -253,10 +271,17 @@ func (portal *Portal) Update() error {
 		}
 	}
 
-	nameChanged := portal.Name != snap.Name
-	if nameChanged {
+	portal.Type = database.ChatType(snap.ChatType)
+
+	nameChanged := false
+	if portal.Type == database.ChatSingle {
+		nameChanged = portal.Name != ""
+		portal.Name = ""
+		portal.NameSet = false
+	} else {
+		nameChanged = portal.Name != snap.Name
 		portal.Name = snap.Name
-		portal.NameSet = len(snap.Name) > 0
+		portal.NameSet = true
 	}
 
 	avatarChanged := portal.Avatar != snap.ProfileImage

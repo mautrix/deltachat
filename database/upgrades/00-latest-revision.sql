@@ -1,10 +1,11 @@
 -- v0 -> v1: Latest revision
 
 CREATE TABLE portal (
-    account_id    BIGINT,
-    chat_id       BIGINT,
+    account_id BIGINT,
+    chat_id    BIGINT,
 
     mxid       TEXT UNIQUE,
+    type       INT NOT NULL,
     plain_name TEXT NOT NULL,
     name       TEXT NOT NULL,
     name_set   BOOLEAN NOT NULL,

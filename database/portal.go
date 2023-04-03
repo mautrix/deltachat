@@ -13,11 +13,21 @@ import (
 // language=postgresql
 const (
 	portalSelect = `
-		SELECT account_id, chat_id, mxid,
+		SELECT account_id, chat_id, mxid, type,
 		       plain_name, name, name_set, topic, topic_set, avatar, avatar_url, avatar_set,
 		       encrypted
 		FROM portal
 	`
+)
+
+type ChatType uint
+
+const (
+	ChatUndefined   ChatType = 0
+	ChatSingle      ChatType = 100
+	ChatGroup       ChatType = 120
+	ChatMailinglist ChatType = 140
+	ChatBroadcast   ChatType = 160
 )
 
 type ChatID uint64
@@ -80,7 +90,9 @@ type Portal struct {
 
 	AccountID AccountID
 	ChatID    ChatID
-	MXID      id.RoomID
+
+	MXID id.RoomID
+	Type ChatType
 
 	PlainName string
 	Name      string
@@ -103,7 +115,7 @@ func (p *Portal) ID() PortalID {
 func (p *Portal) Scan(row dbutil.Scannable) *Portal {
 	var avatarURL string
 
-	err := row.Scan(&p.AccountID, &p.ChatID, &p.MXID, &p.PlainName, &p.Name, &p.NameSet, &p.Topic, &p.TopicSet, &p.Avatar, &avatarURL, &p.AvatarSet,
+	err := row.Scan(&p.AccountID, &p.ChatID, &p.MXID, &p.Type, &p.PlainName, &p.Name, &p.NameSet, &p.Topic, &p.TopicSet, &p.Avatar, &avatarURL, &p.AvatarSet,
 		&p.Encrypted)
 
 	if err != nil {
@@ -122,16 +134,16 @@ func (p *Portal) Scan(row dbutil.Scannable) *Portal {
 
 func (p *Portal) Upsert() error {
 	query := `
-		INSERT INTO portal (account_id, chat_id, mxid,
+		INSERT INTO portal (account_id, chat_id, mxid, type,
 		                    plain_name, name, name_set, topic, topic_set, avatar, avatar_url, avatar_set,
 		                    encrypted)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 		ON CONFLICT (account_id, chat_id) DO UPDATE
-		SET mxid=EXCLUDED.mxid,
+		SET mxid=EXCLUDED.mxid, type=EXCLUDED.type,
 			plain_name=EXCLUDED.plain_name, name=EXCLUDED.name, name_set=EXCLUDED.name_set, topic=EXCLUDED.topic, topic_set=EXCLUDED.topic_set, avatar=EXCLUDED.avatar, avatar_url=EXCLUDED.avatar_url, avatar_set=EXCLUDED.avatar_set,
 			encrypted=EXCLUDED.encrypted
 		ON CONFLICT (mxid) DO UPDATE
-		SET
+		SET type=EXCLUDED.type,
 			plain_name=EXCLUDED.plain_name, name=EXCLUDED.name, name_set=EXCLUDED.name_set, topic=EXCLUDED.topic, topic_set=EXCLUDED.topic_set, avatar=EXCLUDED.avatar, avatar_url=EXCLUDED.avatar_url, avatar_set=EXCLUDED.avatar_set,
 			encrypted=EXCLUDED.encrypted
 	`
@@ -139,6 +151,7 @@ func (p *Portal) Upsert() error {
 		p.AccountID,
 		p.ChatID,
 		p.MXID,
+		p.Type,
 		p.PlainName, p.Name, p.NameSet, p.Topic, p.TopicSet, p.Avatar, p.AvatarURL.String(), p.AvatarSet,
 		p.Encrypted)
 	return err
