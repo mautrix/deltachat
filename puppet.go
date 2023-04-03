@@ -130,17 +130,38 @@ func (puppet *Puppet) Update() error {
 		return err
 	}
 
-	puppet.Name = snap.NameAndAddr
-	puppet.NameSet = true
-	puppet.Upsert()
-
 	intent := puppet.DefaultIntent()
-	err = intent.SetDisplayName(puppet.Name)
-	if err != nil {
-		return err
+
+	updateName := puppet.Name != snap.NameAndAddr
+	if updateName {
+		puppet.Name = snap.NameAndAddr
+		puppet.NameSet = true
+
+		err = intent.SetDisplayName(puppet.Name)
+		if err != nil {
+			return err
+		}
 	}
 
-	return nil
+	updateAvatar := puppet.Avatar != snap.ProfileImage
+	if updateAvatar {
+		puppet.Avatar = snap.ProfileImage
+		puppet.AvatarSet = puppet.Avatar != ""
+
+		if puppet.AvatarSet {
+			puppet.AvatarURL, err = puppet.bridge.UploadBlob(puppet.Avatar)
+			if err != nil {
+				return err
+			}
+		}
+
+		err = puppet.DefaultIntent().SetAvatarURL(puppet.AvatarURL)
+		if err != nil {
+			return err
+		}
+	}
+
+	return puppet.Upsert()
 }
 
 func (puppet *Puppet) SwitchCustomMXID(accessToken string, mxid id.UserID) error {

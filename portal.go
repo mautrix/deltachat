@@ -253,9 +253,26 @@ func (portal *Portal) Update() error {
 		}
 	}
 
-	portal.Name = snap.Name
-	portal.NameSet = len(snap.Name) > 0
-	portal.AvatarSet = !portal.AvatarURL.IsEmpty()
+	nameChanged := portal.Name != snap.Name
+	if nameChanged {
+		portal.Name = snap.Name
+		portal.NameSet = len(snap.Name) > 0
+	}
+
+	avatarChanged := portal.Avatar != snap.ProfileImage
+	if avatarChanged {
+		portal.Avatar = snap.ProfileImage
+		portal.AvatarSet = portal.Avatar != ""
+
+		if portal.AvatarSet {
+			portal.AvatarURL, err = portal.bridge.UploadBlob(portal.Avatar)
+			if err != nil {
+				return err
+			}
+		} else {
+			portal.AvatarURL = id.ContentURI{}
+		}
+	}
 
 	createMatrixRoom := portal.MXID == ""
 	if createMatrixRoom {
@@ -277,7 +294,13 @@ func (portal *Portal) Update() error {
 		return nil
 	}
 
-	_, _ = user.bridge.Bot.SetRoomName(portal.MXID, portal.Name)
+	if nameChanged {
+		_, _ = user.bridge.Bot.SetRoomName(portal.MXID, portal.Name)
+	}
+
+	if avatarChanged {
+		_, _ = user.bridge.Bot.SetRoomAvatar(portal.MXID, portal.AvatarURL)
+	}
 
 	return portal.Upsert()
 }

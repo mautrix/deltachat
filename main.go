@@ -3,6 +3,8 @@ package main
 import (
 	_ "embed"
 	"fmt"
+	"net/http"
+	"os"
 	"runtime"
 	"strings"
 	"sync"
@@ -10,6 +12,7 @@ import (
 	"github.com/deltachat/deltachat-rpc-client-go/deltachat"
 	"github.com/rs/zerolog"
 
+	"maunium.net/go/mautrix"
 	"maunium.net/go/mautrix/bridge"
 	"maunium.net/go/mautrix/bridge/commands"
 	"maunium.net/go/mautrix/id"
@@ -211,4 +214,24 @@ func main() {
 	br.InitVersion(Tag, Commit, BuildTime)
 
 	br.Main()
+}
+
+func (br *DeltaChatBridge) UploadBlob(path string) (id.ContentURI, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return id.ContentURI{}, err
+	}
+
+	req := mautrix.ReqUploadMedia{
+		ContentBytes:  data,
+		ContentLength: int64(len(data)),
+		ContentType:   http.DetectContentType(data),
+	}
+
+	resp, err := br.Bot.UploadMedia(req)
+	if err != nil {
+		return id.ContentURI{}, err
+	}
+
+	return resp.ContentURI, nil
 }

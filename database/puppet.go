@@ -126,7 +126,7 @@ func (p *Puppet) Scan(row dbutil.Scannable) *Puppet {
 	return p
 }
 
-func (p *Puppet) Upsert() {
+func (p *Puppet) Upsert() error {
 	query := `
 		INSERT INTO puppet (account_id, contact_id, name, name_set, avatar, avatar_url, avatar_set, custom_mxid, access_token, next_batch)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
@@ -135,9 +135,5 @@ func (p *Puppet) Upsert() {
 	`
 	_, err := p.db.Exec(query, p.AccountID, p.ContactID, p.Name, p.NameSet, p.Avatar, p.AvatarURL.String(), p.AvatarSet,
 		strPtr(string(p.CustomMXID)), strPtr(p.AccessToken), strPtr(p.NextBatch))
-
-	if err != nil {
-		p.log.Warnfln("Failed to insert %d-%d: %v", p.AccountID, p.ContactID, err)
-		panic(err)
-	}
+	return err
 }
