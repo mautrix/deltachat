@@ -111,7 +111,7 @@ func (br *DeltaChatBridge) GetPortalByID(portalID database.PortalID) *Portal {
 	portal, ok := br.portalsByID[portalID]
 	if !ok {
 		dbPortal := br.DB.Portal.Get(portalID)
-		portal := br.NewPortal(dbPortal)
+		portal = br.NewPortal(dbPortal)
 
 		if dbPortal == nil {
 			dbPortal = br.DB.Portal.New()
@@ -126,10 +126,6 @@ func (br *DeltaChatBridge) GetPortalByID(portalID database.PortalID) *Portal {
 			}
 		}
 
-		err := portal.Update()
-		if err != nil {
-			br.ZLog.Err(err).Msg("Failed to update portal in getter")
-		}
 		br.portalsByMXID[portal.MXID] = portal
 		br.portalsByID[portalID] = portal
 	}
