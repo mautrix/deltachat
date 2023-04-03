@@ -161,11 +161,19 @@ func (br *DeltaChatBridge) GetAllIPortals() (iportals []bridge.Portal) {
 }
 
 func (br *DeltaChatBridge) GetIPortal(mxid id.RoomID) bridge.Portal {
-	return br.GetPortalByMXID(mxid)
+	p := br.GetPortalByMXID(mxid)
+	if p == nil {
+		return nil
+	}
+	return p
 }
 
 func (br *DeltaChatBridge) GetIUser(mxid id.UserID, create bool) bridge.User {
-	return br.GetUserByMXID(mxid)
+	p := br.GetUserByMXID(mxid)
+	if p == nil {
+		return nil
+	}
+	return p
 }
 
 func (br *DeltaChatBridge) IsGhost(mxid id.UserID) bool {
