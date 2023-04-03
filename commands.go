@@ -45,8 +45,7 @@ var cmdLogin = &commands.FullHandler{
 	Name: "login",
 	Help: commands.HelpMeta{
 		Section:     commands.HelpSectionAuth,
-		Description: "Login to your email account",
-		Args:        "<user/bot/oauth> <_token_>",
+		Description: "Login to your configured email account",
 	},
 }
 
