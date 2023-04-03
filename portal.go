@@ -94,7 +94,14 @@ func (br *DeltaChatBridge) GetPortalByMXID(mxid id.RoomID) *Portal {
 	br.portalsLock.Lock()
 	defer br.portalsLock.Unlock()
 
-	return br.portalsByMXID[mxid]
+	portal, ok := br.portalsByMXID[mxid]
+	if !ok {
+		return &Portal{
+			bridge: br,
+		}
+	}
+
+	return portal
 }
 
 func (br *DeltaChatBridge) GetPortalByID(portalID database.PortalID) *Portal {
@@ -115,10 +122,14 @@ func (br *DeltaChatBridge) GetPortalByID(portalID database.PortalID) *Portal {
 			err := portal.Update()
 			if err != nil {
 				br.ZLog.Err(err).Msg("Failed to update portal in getter")
-				return nil
+				return portal
 			}
 		}
 
+		err := portal.Update()
+		if err != nil {
+			br.ZLog.Err(err).Msg("Failed to update portal in getter")
+		}
 		br.portalsByMXID[portal.MXID] = portal
 		br.portalsByID[portalID] = portal
 	}
@@ -187,10 +198,15 @@ func (portal *Portal) handleMatrixMessage(sender *User, evt *event.Event) {
 
 	switch content.MsgType {
 	case event.MsgText, event.MsgEmote, event.MsgNotice:
-		// FIXME implement properly
-		_, err := portal.chat.SendText(content.Body)
+		chat, err := portal.Chat()
 		if err != nil {
-			portal.log.Error().Msg("Failed to send message")
+			portal.log.Err(err).Msg("Failed to get chat from portal")
+			return
+		}
+
+		_, err = chat.SendText(content.Body)
+		if err != nil {
+			portal.log.Err(err).Msg("Failed to send message")
 			return
 		}
 		portal.log.Debug().Str("body", content.Body).Msg("Sent text event!")
@@ -231,6 +247,14 @@ func (portal *Portal) Update() error {
 	snap, err := chat.FullSnapshot()
 	if err != nil {
 		return err
+	}
+
+	// FIXME we should use Matrix invites to handle this
+	if snap.IsContactRequest {
+		err := chat.Accept()
+		if err != nil {
+			return err
+		}
 	}
 
 	portal.Name = snap.Name

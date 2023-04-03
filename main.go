@@ -92,35 +92,6 @@ func (br *DeltaChatBridge) Init() {
 		name = fns[len(fns)-1]
 		return fmt.Sprintf("%s:%d:%s()", file, line, name)
 	}
-
-	// load users, puppets and portals
-	for _, dbUser := range br.DB.User.GetAll() {
-		user := br.NewUser(dbUser)
-		if user.AccountID != nil {
-			br.usersByAccountID[*user.AccountID] = user
-		}
-		if user.MXID != "" {
-			br.usersByMXID[user.MXID] = user
-		}
-	}
-
-	for _, dbPuppet := range br.DB.Puppet.GetAll() {
-		puppet := br.NewPuppet(dbPuppet)
-		br.puppets[puppet.ID()] = puppet
-		/*
-			if puppet.MXID != "" {
-				br.puppetsByCustomMXID[puppet.MXID] = puppet
-			}
-		*/
-	}
-
-	for _, dbPortal := range br.DB.Portal.GetAll() {
-		portal := br.NewPortal(dbPortal)
-		br.portalsByID[portal.ID()] = portal
-		if portal.MXID != "" {
-			br.portalsByMXID[portal.MXID] = portal
-		}
-	}
 }
 
 func (br *DeltaChatBridge) Start() {
