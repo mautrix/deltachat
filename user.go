@@ -456,6 +456,28 @@ func (user *User) processAccountEvents(eventsChan <-chan *deltachat.Event) {
 				msgType = event.MsgNotice
 			}
 
+			if snap.File != "" {
+				contentURI, err := user.bridge.UploadBlobWithName(snap.File, snap.FileName)
+				if err != nil {
+					user.log.Err(err).Msg("Failed to get incoming message snapshot")
+					break
+				}
+
+				mediaType := event.MsgFile
+				if strings.HasPrefix(snap.FileMime, "image/") {
+					mediaType = event.MsgImage
+				} else if strings.HasPrefix(snap.FileMime, "video/") {
+					mediaType = event.MsgVideo
+				}
+
+				intent.SendMessageEvent(portal.MXID, event.EventMessage, event.MessageEventContent{
+					MsgType:  mediaType,
+					FileName: snap.FileName,
+					URL:      contentURI.CUString(),
+					Body:     snap.FileName,
+				})
+			}
+
 			intent.SendMessageEvent(portal.MXID, event.EventMessage, event.MessageEventContent{
 				MsgType: msgType,
 				Body:    snap.Text,

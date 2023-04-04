@@ -224,7 +224,7 @@ func main() {
 	br.Main()
 }
 
-func (br *DeltaChatBridge) UploadBlob(path string) (id.ContentURI, error) {
+func (br *DeltaChatBridge) UploadBlobWithName(path string, fileName string) (id.ContentURI, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return id.ContentURI{}, err
@@ -234,6 +234,7 @@ func (br *DeltaChatBridge) UploadBlob(path string) (id.ContentURI, error) {
 		ContentBytes:  data,
 		ContentLength: int64(len(data)),
 		ContentType:   http.DetectContentType(data),
+		FileName:      fileName,
 	}
 
 	resp, err := br.Bot.UploadMedia(req)
@@ -242,4 +243,8 @@ func (br *DeltaChatBridge) UploadBlob(path string) (id.ContentURI, error) {
 	}
 
 	return resp.ContentURI, nil
+}
+
+func (br *DeltaChatBridge) UploadBlob(path string) (id.ContentURI, error) {
+	return br.UploadBlobWithName(path, "")
 }
