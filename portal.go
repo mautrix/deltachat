@@ -55,7 +55,7 @@ func (portal *Portal) Chat() (*deltachat.Chat, error) {
 
 		portal.chat = &deltachat.Chat{
 			Account: acct,
-			Id:      uint64(portal.ChatID),
+			Id:      portal.ChatID,
 		}
 	}
 
@@ -72,7 +72,7 @@ func (portal *Portal) MarkEncrypted() {
 }
 
 func (portal *Portal) IsPrivateChat() bool {
-	return portal.Type == database.ChatSingle
+	return portal.Type == deltachat.CHAT_TYPE_SINGLE
 }
 
 func (portal *Portal) ReceiveMatrixEvent(user bridge.User, evt *event.Event) {
@@ -100,7 +100,7 @@ func (portal *Portal) MainIntent() *appservice.IntentAPI {
 
 		puppetID := database.PuppetID{
 			AccountID: portal.AccountID,
-			ContactID: database.ContactID(contacts[0].Id),
+			ContactID: contacts[0].Id,
 		}
 
 		return portal.bridge.GetPuppetByID(puppetID).DefaultIntent()
@@ -233,7 +233,7 @@ func (portal *Portal) handleMatrixMessage(sender *User, evt *event.Event) {
 }
 
 func (portal *Portal) handleDeltaChatMessage(msg *deltachat.MsgSnapshot) {
-	puppet := portal.bridge.GetPuppetByID(database.PuppetID{AccountID: database.AccountID(portal.AccountID), ContactID: database.ContactID(msg.FromId), NameOverride: msg.OverrideSenderName})
+	puppet := portal.bridge.GetPuppetByID(database.PuppetID{AccountID: portal.AccountID, ContactID: msg.FromId, NameOverride: msg.OverrideSenderName})
 
 	msgType := event.MsgText
 	intent := puppet.DefaultIntent()
@@ -312,7 +312,7 @@ func (portal *Portal) Update() error {
 	}
 
 	// ignore any chats that are not pure Delta Chat
-	if database.ChatType(snap.ChatType) == database.ChatUndefined {
+	if snap.ChatType == deltachat.CHAT_TYPE_UNDEFINED {
 		return nil
 	}
 
@@ -324,10 +324,10 @@ func (portal *Portal) Update() error {
 		}
 	}
 
-	portal.Type = database.ChatType(snap.ChatType)
+	portal.Type = snap.ChatType
 
 	nameChanged := false
-	if portal.Type == database.ChatSingle {
+	if portal.Type == deltachat.CHAT_TYPE_SINGLE {
 		nameChanged = portal.Name != ""
 		portal.Name = ""
 		portal.NameSet = false
@@ -362,7 +362,7 @@ func (portal *Portal) Update() error {
 
 	// FIXME configurable
 	for _, contactID := range snap.ContactIds {
-		puppet := portal.bridge.GetPuppetByID(database.PuppetID{AccountID: *user.AccountID, ContactID: database.ContactID(contactID)})
+		puppet := portal.bridge.GetPuppetByID(database.PuppetID{AccountID: *user.AccountID, ContactID: contactID})
 		puppet.DefaultIntent().EnsureJoined(portal.MXID)
 	}
 

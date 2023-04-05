@@ -21,21 +21,9 @@ const (
 	`
 )
 
-type ChatType uint
-
-const (
-	ChatUndefined   ChatType = ChatType(deltachat.CHAT_TYPE_UNDEFINED)
-	ChatSingle      ChatType = ChatType(deltachat.CHAT_TYPE_SINGLE)
-	ChatGroup       ChatType = ChatType(deltachat.CHAT_TYPE_GROUP)
-	ChatMailinglist ChatType = ChatType(deltachat.CHAT_TYPE_MAILINGLIST)
-	ChatBroadcast   ChatType = ChatType(deltachat.CHAT_TYPE_BROADCAST)
-)
-
-type ChatID uint64
-
 type PortalID struct {
-	AccountID AccountID
-	ChatID    ChatID
+	AccountID deltachat.AccountId
+	ChatID    deltachat.ChatId
 }
 
 func (pid PortalID) String() string {
@@ -89,11 +77,11 @@ type Portal struct {
 	db  *Database
 	log log.Logger
 
-	AccountID AccountID
-	ChatID    ChatID
+	AccountID deltachat.AccountId
+	ChatID    deltachat.ChatId
 
 	MXID id.RoomID
-	Type ChatType
+	Type deltachat.ChatType
 
 	PlainName string
 	Name      string

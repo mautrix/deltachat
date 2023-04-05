@@ -3,6 +3,7 @@ package database
 import (
 	"database/sql"
 
+	"github.com/deltachat/deltachat-rpc-client-go/deltachat"
 	log "maunium.net/go/maulogger/v2"
 
 	"maunium.net/go/mautrix/id"
@@ -28,7 +29,7 @@ func (uq *UserQuery) GetByMXID(userID id.UserID) *User {
 	return uq.New().Scan(uq.db.QueryRow(query, userID))
 }
 
-func (uq *UserQuery) GetByAccountID(id AccountID) *User {
+func (uq *UserQuery) GetByAccountID(id deltachat.AccountId) *User {
 	query := `SELECT mxid, account_id, management_room FROM "user" WHERE account_id=$1`
 	return uq.New().Scan(uq.db.QueryRow(query, id))
 }
@@ -37,14 +38,12 @@ func (uq *UserQuery) GetAll() []*User {
 	return uq.getAll(userSelect)
 }
 
-type AccountID uint64
-
 type User struct {
 	db  *Database
 	log log.Logger
 
 	MXID           id.UserID
-	AccountID      *AccountID
+	AccountID      *deltachat.AccountId
 	ManagementRoom id.RoomID
 }
 

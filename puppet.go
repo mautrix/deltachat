@@ -67,8 +67,8 @@ func (br *DeltaChatBridge) ParsePuppetMXID(mxid id.UserID) (_ database.PuppetID,
 	}
 
 	return database.PuppetID{
-		AccountID:    database.AccountID(accountID),
-		ContactID:    database.ContactID(contactID),
+		AccountID:    deltachat.AccountId(accountID),
+		ContactID:    deltachat.ContactId(contactID),
 		NameOverride: nameOverride,
 	}, true
 }
@@ -138,7 +138,7 @@ func (puppet *Puppet) Update() error {
 
 	contact := &deltachat.Contact{
 		Account: acct,
-		Id:      uint64(puppet.ContactID),
+		Id:      puppet.ContactID,
 	}
 
 	snap, err := contact.Snapshot()

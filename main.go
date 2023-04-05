@@ -44,7 +44,7 @@ type DeltaChatBridge struct {
 	//provisioning *ProvisioningAPI
 
 	usersByMXID      map[id.UserID]*User
-	usersByAccountID map[database.AccountID]*User
+	usersByAccountID map[deltachat.AccountId]*User
 	usersLock        sync.Mutex
 
 	managementRooms     map[id.RoomID]*User
@@ -110,9 +110,9 @@ func (br *DeltaChatBridge) Start() {
 	}
 
 	for _, acct := range accounts {
-		user := br.GetUserByAccountID(database.AccountID(acct.Id))
+		user := br.GetUserByAccountID(acct.Id)
 		if user == nil {
-			br.ZLog.Warn().Uint64("account_id", acct.Id).Msg("Account found from Delta Chat database not mapped?")
+			br.ZLog.Warn().Uint64("account_id", uint64(acct.Id)).Msg("Account found from Delta Chat database not mapped?")
 			continue
 		}
 
@@ -192,7 +192,7 @@ func (br *DeltaChatBridge) CreatePrivatePortal(id id.RoomID, user bridge.User, g
 func main() {
 	br := &DeltaChatBridge{
 		usersByMXID:      make(map[id.UserID]*User),
-		usersByAccountID: make(map[database.AccountID]*User),
+		usersByAccountID: make(map[deltachat.AccountId]*User),
 
 		managementRooms: make(map[id.RoomID]*User),
 

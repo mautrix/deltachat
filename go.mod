@@ -3,7 +3,7 @@ module go.mau.fi/mautrix-deltachat
 go 1.19
 
 require (
-	github.com/deltachat/deltachat-rpc-client-go v0.11.1
+	github.com/deltachat/deltachat-rpc-client-go v0.12.0
 	github.com/lib/pq v1.10.7
 	github.com/mattn/go-sqlite3 v1.14.16
 	github.com/rs/zerolog v1.29.0

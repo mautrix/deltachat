@@ -36,7 +36,7 @@ type User struct {
 	account       *deltachat.Account
 	accountEvents <-chan *deltachat.Event
 
-	contacts map[database.ContactID]*deltachat.Contact
+	contacts map[deltachat.ContactId]*deltachat.Contact
 
 	PermissionLevel bridgeconfig.PermissionLevel
 
@@ -44,39 +44,39 @@ type User struct {
 	bridgeStateLock sync.Mutex
 }
 
-func (user *User) NewPuppet(contactID uint64) *Puppet {
+func (user *User) NewPuppet(contactID deltachat.ContactId) *Puppet {
 	dbPuppet := user.bridge.DB.Puppet.New()
 	dbPuppet.AccountID = *user.AccountID
-	dbPuppet.ContactID = database.ContactID(contactID)
+	dbPuppet.ContactID = contactID
 	return user.bridge.NewPuppet(dbPuppet)
 }
 
-func (user *User) NewPortal(chatID uint64) *Portal {
+func (user *User) NewPortal(chatID deltachat.ChatId) *Portal {
 	dbPortal := user.bridge.DB.Portal.New()
 	dbPortal.AccountID = *user.AccountID
-	dbPortal.ChatID = database.ChatID(chatID)
+	dbPortal.ChatID = chatID
 	return user.bridge.NewPortal(dbPortal)
 }
 
-func (user *User) GetPuppetID(contactID uint64) database.PuppetID {
+func (user *User) GetPuppetID(contactID deltachat.ContactId) database.PuppetID {
 	if user.AccountID == nil {
 		return database.PuppetID{}
 	}
 
 	return database.PuppetID{
 		AccountID: *user.AccountID,
-		ContactID: database.ContactID(contactID),
+		ContactID: contactID,
 	}
 }
 
-func (user *User) GetPortalID(chatID uint64) database.PortalID {
+func (user *User) GetPortalID(chatID deltachat.ChatId) database.PortalID {
 	if user.AccountID == nil {
 		return database.PortalID{}
 	}
 
 	return database.PortalID{
 		AccountID: *user.AccountID,
-		ChatID:    database.ChatID(chatID),
+		ChatID:    chatID,
 	}
 }
 
@@ -156,7 +156,7 @@ func (br *DeltaChatBridge) GetUserByMXID(userID id.UserID) *User {
 	return user
 }
 
-func (br *DeltaChatBridge) GetUserByAccountID(accountID database.AccountID) *User {
+func (br *DeltaChatBridge) GetUserByAccountID(accountID deltachat.AccountId) *User {
 	br.usersLock.Lock()
 	defer br.usersLock.Unlock()
 
@@ -172,7 +172,7 @@ func (br *DeltaChatBridge) NewUser(dbUser *database.User) *User {
 		User:     dbUser,
 		bridge:   br,
 		log:      br.ZLog.With().Str("user_id", string(dbUser.MXID)).Logger(),
-		contacts: map[database.ContactID]*deltachat.Contact{},
+		contacts: map[deltachat.ContactId]*deltachat.Contact{},
 
 		PermissionLevel: br.Config.Bridge.Permissions.Get(dbUser.MXID),
 	}
@@ -204,7 +204,7 @@ func (user *User) Import() error {
 
 	for _, chat := range chats {
 		// fetching each portal will implicitly create them and invite the user
-		user.bridge.GetPortalByID(database.PortalID{AccountID: *user.AccountID, ChatID: database.ChatID(chat.Id)})
+		user.bridge.GetPortalByID(database.PortalID{AccountID: *user.AccountID, ChatID: chat.Id})
 	}
 
 	return nil
@@ -250,7 +250,7 @@ func (user *User) getAccount() (*deltachat.Account, error) {
 			}
 
 			user.account = acc
-			accountID := database.AccountID(acc.Id)
+			accountID := acc.Id
 			user.AccountID = &accountID
 			user.Update()
 		}
@@ -261,7 +261,7 @@ func (user *User) getAccount() (*deltachat.Account, error) {
 		}
 
 		for _, acc := range accounts {
-			if database.AccountID(acc.Id) == *user.AccountID {
+			if acc.Id == *user.AccountID {
 				user.account = acc
 			}
 		}
@@ -443,19 +443,19 @@ func (user *User) processAccountEvents(eventsChan <-chan *deltachat.Event) {
 				break
 			}
 
-			portal := user.bridge.GetPortalByID(database.PortalID{AccountID: database.AccountID(acct.Id), ChatID: database.ChatID(snap.ChatId)})
+			portal := user.bridge.GetPortalByID(database.PortalID{AccountID: acct.Id, ChatID: snap.ChatId})
 			portal.ReceiveDeltaChatMessage(snap)
 		case deltachat.EVENT_INCOMING_MSG_BUNCH:
 			// not used
 		case deltachat.EVENT_CONTACTS_CHANGED:
-			puppet := user.bridge.GetPuppetByID(database.PuppetID{AccountID: database.AccountID(acct.Id), ContactID: database.ContactID(evt.ContactId)})
+			puppet := user.bridge.GetPuppetByID(database.PuppetID{AccountID: acct.Id, ContactID: evt.ContactId})
 			err := puppet.Update()
 			if err != nil {
 				user.log.Err(err).Msg("Failed to update puppet")
 				break
 			}
 		case deltachat.EVENT_CHAT_MODIFIED:
-			portal := user.bridge.GetPortalByID(database.PortalID{AccountID: database.AccountID(acct.Id), ChatID: database.ChatID(evt.ChatId)})
+			portal := user.bridge.GetPortalByID(database.PortalID{AccountID: acct.Id, ChatID: evt.ChatId})
 			portal.Update()
 			if err != nil {
 				user.log.Err(err).Msg("Failed to update portal")

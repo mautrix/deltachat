@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/deltachat/deltachat-rpc-client-go/deltachat"
 	log "maunium.net/go/maulogger/v2"
 
 	"maunium.net/go/mautrix/id"
@@ -16,11 +17,9 @@ const (
 		" FROM puppet "
 )
 
-type ContactID uint64
-
 type PuppetID struct {
-	AccountID    AccountID
-	ContactID    ContactID
+	AccountID    deltachat.AccountId
+	ContactID    deltachat.ContactId
 	NameOverride string
 }
 
@@ -83,8 +82,8 @@ type Puppet struct {
 	db  *Database
 	log log.Logger
 
-	AccountID    AccountID
-	ContactID    ContactID
+	AccountID    deltachat.AccountId
+	ContactID    deltachat.ContactId
 	NameOverride string
 
 	Name      string
