@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"sync"
 
 	"github.com/deltachat/deltachat-rpc-client-go/deltachat"
@@ -28,6 +29,7 @@ type Portal struct {
 	chat   *deltachat.Chat
 
 	matrixMessages chan portalMatrixMessage
+	dcMessages     chan *deltachat.MsgSnapshot
 
 	Encrypted bool
 }
@@ -77,6 +79,10 @@ func (portal *Portal) ReceiveMatrixEvent(user bridge.User, evt *event.Event) {
 	if user.GetPermissionLevel() >= bridgeconfig.PermissionLevelUser {
 		portal.matrixMessages <- portalMatrixMessage{user: user.(*User), evt: evt}
 	}
+}
+
+func (portal *Portal) ReceiveDeltaChatMessage(msg *deltachat.MsgSnapshot) {
+	portal.dcMessages <- msg
 }
 
 func (portal *Portal) MainIntent() *appservice.IntentAPI {
@@ -158,6 +164,7 @@ func (br *DeltaChatBridge) NewPortal(dbPortal *database.Portal) *Portal {
 		log:    log,
 
 		matrixMessages: make(chan portalMatrixMessage, br.Config.Bridge.PortalMessageBuffer),
+		dcMessages:     make(chan *deltachat.MsgSnapshot, br.Config.Bridge.PortalMessageBuffer),
 	}
 
 	go portal.messageLoop()
@@ -170,6 +177,8 @@ func (portal *Portal) messageLoop() {
 		select {
 		case msg := <-portal.matrixMessages:
 			portal.handleMatrixMessages(msg)
+		case msg := <-portal.dcMessages:
+			portal.handleDeltaChatMessage(msg)
 		}
 	}
 }
@@ -221,6 +230,47 @@ func (portal *Portal) handleMatrixMessage(sender *User, evt *event.Event) {
 	default:
 		portal.log.Warn().Str("type", string(content.MsgType)).Msg("Ignored message type from Matrix")
 	}
+}
+
+func (portal *Portal) handleDeltaChatMessage(msg *deltachat.MsgSnapshot) {
+	puppet := portal.bridge.GetPuppetByID(database.PuppetID{AccountID: database.AccountID(portal.AccountID), ContactID: database.ContactID(msg.FromId), NameOverride: msg.OverrideSenderName})
+
+	msgType := event.MsgText
+	intent := puppet.DefaultIntent()
+
+	if msg.IsSetupmessage || msg.IsInfo {
+		msgType = event.MsgNotice
+		intent = portal.bridge.Bot
+	} else if msg.IsBot {
+		msgType = event.MsgNotice
+	}
+
+	if msg.File != "" {
+		contentURI, err := portal.bridge.UploadBlobWithName(msg.File, msg.FileName)
+		if err != nil {
+			portal.log.Err(err).Msg("Failed upload message file blob")
+			return
+		}
+
+		mediaType := event.MsgFile
+		if strings.HasPrefix(msg.FileMime, "image/") {
+			mediaType = event.MsgImage
+		} else if strings.HasPrefix(msg.FileMime, "video/") {
+			mediaType = event.MsgVideo
+		}
+
+		intent.SendMessageEvent(portal.MXID, event.EventMessage, event.MessageEventContent{
+			MsgType:  mediaType,
+			FileName: msg.FileName,
+			URL:      contentURI.CUString(),
+			Body:     msg.FileName,
+		})
+	}
+
+	intent.SendMessageEvent(portal.MXID, event.EventMessage, event.MessageEventContent{
+		MsgType: msgType,
+		Body:    msg.Text,
+	})
 }
 
 func (portal *Portal) UpdateBridgeInfo() {
