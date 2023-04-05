@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	puppetSelect = "SELECT account_id, contact_id, name, name_set, avatar, avatar_url, avatar_set," +
+	puppetSelect = "SELECT account_id, contact_id, name_override, name, name_set, avatar, avatar_url, avatar_set," +
 		" custom_mxid, access_token, next_batch" +
 		" FROM puppet "
 )
@@ -19,19 +19,17 @@ const (
 type ContactID uint64
 
 type PuppetID struct {
-	AccountID AccountID
-	ContactID ContactID
+	AccountID    AccountID
+	ContactID    ContactID
+	NameOverride string
 }
 
 func (p PuppetID) String() string {
-	return fmt.Sprintf("%d-%d", p.AccountID, p.ContactID)
-}
-
-func NewPuppetID(accountID AccountID, contactID ContactID) PuppetID {
-	return PuppetID{
-		AccountID: accountID,
-		ContactID: contactID,
+	if p.NameOverride != "" {
+		return fmt.Sprintf("%d_%d_%s", p.AccountID, p.ContactID, p.NameOverride)
 	}
+
+	return fmt.Sprintf("%d_%d", p.AccountID, p.ContactID)
 }
 
 type PuppetQuery struct {
@@ -47,7 +45,7 @@ func (pq *PuppetQuery) New() *Puppet {
 }
 
 func (pq *PuppetQuery) Get(puppetID PuppetID) *Puppet {
-	return pq.get(puppetSelect+" WHERE account_id=$1 AND contact_id=$2", puppetID.AccountID, puppetID.ContactID)
+	return pq.get(puppetSelect+" WHERE account_id=$1 AND contact_id=$2 AND name_override=$3", puppetID.AccountID, puppetID.ContactID, puppetID.NameOverride)
 }
 
 func (pq *PuppetQuery) GetByCustomMXID(mxid id.UserID) *Puppet {
@@ -85,8 +83,10 @@ type Puppet struct {
 	db  *Database
 	log log.Logger
 
-	AccountID AccountID
-	ContactID ContactID
+	AccountID    AccountID
+	ContactID    ContactID
+	NameOverride string
+
 	Name      string
 	NameSet   bool
 	Avatar    string
@@ -99,14 +99,18 @@ type Puppet struct {
 }
 
 func (p *Puppet) ID() PuppetID {
-	return NewPuppetID(p.AccountID, p.ContactID)
+	return PuppetID{
+		AccountID:    p.AccountID,
+		ContactID:    p.ContactID,
+		NameOverride: p.NameOverride,
+	}
 }
 
 func (p *Puppet) Scan(row dbutil.Scannable) *Puppet {
 	var avatarURL string
 	var customMXID, accessToken, nextBatch sql.NullString
 
-	err := row.Scan(&p.AccountID, &p.ContactID, &p.Name, &p.NameSet, &p.Avatar, &avatarURL, &p.AvatarSet,
+	err := row.Scan(&p.AccountID, &p.ContactID, &p.NameOverride, &p.Name, &p.NameSet, &p.Avatar, &avatarURL, &p.AvatarSet,
 		&customMXID, &accessToken, &nextBatch)
 
 	if err != nil {
@@ -128,12 +132,19 @@ func (p *Puppet) Scan(row dbutil.Scannable) *Puppet {
 
 func (p *Puppet) Upsert() error {
 	query := `
-		INSERT INTO puppet (account_id, contact_id, name, name_set, avatar, avatar_url, avatar_set, custom_mxid, access_token, next_batch)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-		ON CONFLICT(account_id, contact_id) DO UPDATE SET
-		name = $3, name_set = $4, avatar = $5, avatar_url = $6, avatar_set = $7, custom_mxid = $8, access_token = $9, next_batch = $10
+		INSERT INTO puppet (account_id, contact_id, name_override, name, name_set, avatar, avatar_url, avatar_set, custom_mxid, access_token, next_batch)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		ON CONFLICT(account_id, contact_id, name_override) DO UPDATE SET
+			name = EXCLUDED.name,
+			name_set = EXCLUDED.name_set,
+			avatar = EXCLUDED.avatar,
+			avatar_url = EXCLUDED.avatar_url,
+			avatar_set = EXCLUDED.avatar_set,
+			custom_mxid = EXCLUDED.custom_mxid,
+			access_token = EXCLUDED.access_token,
+			next_batch = EXCLUDED.next_batch
 	`
-	_, err := p.db.Exec(query, p.AccountID, p.ContactID, p.Name, p.NameSet, p.Avatar, p.AvatarURL.String(), p.AvatarSet,
+	_, err := p.db.Exec(query, p.AccountID, p.ContactID, p.NameOverride, p.Name, p.NameSet, p.Avatar, p.AvatarURL.String(), p.AvatarSet,
 		strPtr(string(p.CustomMXID)), strPtr(p.AccessToken), strPtr(p.NextBatch))
 	return err
 }

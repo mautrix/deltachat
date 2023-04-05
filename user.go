@@ -443,7 +443,7 @@ func (user *User) processAccountEvents(eventsChan <-chan *deltachat.Event) {
 				break
 			}
 
-			puppet := user.bridge.GetPuppetByID(database.PuppetID{AccountID: database.AccountID(acct.Id), ContactID: database.ContactID(snap.FromId)})
+			puppet := user.bridge.GetPuppetByID(database.PuppetID{AccountID: database.AccountID(acct.Id), ContactID: database.ContactID(snap.FromId), NameOverride: snap.OverrideSenderName})
 			portal := user.bridge.GetPortalByID(database.PortalID{AccountID: database.AccountID(acct.Id), ChatID: database.ChatID(snap.ChatId)})
 
 			msgType := event.MsgText

@@ -20,8 +20,9 @@ CREATE TABLE portal (
 );
 
 CREATE TABLE puppet (
-    account_id BIGINT NOT NULL,
-    contact_id BIGINT NOT NULL,
+    account_id    BIGINT NOT NULL,
+    contact_id    BIGINT NOT NULL,
+    name_override TEXT NOT NULL,
 
     name       TEXT NOT NULL,
     name_set   BOOLEAN NOT NULL,
@@ -33,7 +34,7 @@ CREATE TABLE puppet (
     access_token TEXT,
     next_batch   TEXT,
 
-    PRIMARY KEY (account_id, contact_id)
+    PRIMARY KEY (account_id, contact_id, name_override)
 );
 
 CREATE TABLE "user" (

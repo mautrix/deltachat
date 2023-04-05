@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"regexp"
 	"strconv"
 
@@ -25,8 +24,6 @@ func (puppet *Puppet) GetMXID() id.UserID {
 	return puppet.MXID
 }
 
-var userIDRegex *regexp.Regexp
-
 func (br *DeltaChatBridge) NewPuppet(dbPuppet *database.Puppet) *Puppet {
 	return &Puppet{
 		Puppet: dbPuppet,
@@ -37,25 +34,43 @@ func (br *DeltaChatBridge) NewPuppet(dbPuppet *database.Puppet) *Puppet {
 	}
 }
 
-func (br *DeltaChatBridge) ParsePuppetMXID(mxid id.UserID) (database.PuppetID, bool) {
+var userIDRegex *regexp.Regexp
+
+func (br *DeltaChatBridge) ParsePuppetMXID(mxid id.UserID) (_ database.PuppetID, _ bool) {
 	if userIDRegex == nil {
-		pattern := fmt.Sprintf(
-			"^@%s:%s$",
-			br.Config.Bridge.FormatUsername("([0-9]+)"),
-			br.Config.Homeserver.Domain,
-		)
-
-		userIDRegex = regexp.MustCompile(pattern)
+		userIDRegex = regexp.MustCompile(br.Config.Bridge.FormatUsername("([0-9]+)_([0-9]+)(_(.+))?"))
 	}
 
-	match := userIDRegex.FindStringSubmatch(string(mxid))
-	if len(match) == 3 {
-		accountID, _ := strconv.ParseUint(match[1], 10, 64)
-		contactID, _ := strconv.ParseUint(match[2], 10, 64)
-		return database.NewPuppetID(database.AccountID(accountID), database.ContactID(contactID)), true
+	localpart, homeserver, err := mxid.ParseAndDecode()
+	if err != nil || homeserver != br.Config.Homeserver.Domain {
+		return
 	}
 
-	return database.PuppetID{}, false
+	match := userIDRegex.FindStringSubmatch(localpart)
+	if len(match) < 3 {
+		return
+	}
+
+	accountID, err := strconv.ParseUint(match[1], 10, 64)
+	if err != nil {
+		return
+	}
+
+	contactID, err := strconv.ParseUint(match[2], 10, 64)
+	if err != nil {
+		return
+	}
+
+	var nameOverride string
+	if len(match) > 4 {
+		nameOverride = match[4]
+	}
+
+	return database.PuppetID{
+		AccountID:    database.AccountID(accountID),
+		ContactID:    database.ContactID(contactID),
+		NameOverride: nameOverride,
+	}, true
 }
 
 func (br *DeltaChatBridge) GetPuppetByMXID(mxid id.UserID) *Puppet {
@@ -78,6 +93,7 @@ func (br *DeltaChatBridge) GetPuppetByID(puppetID database.PuppetID) *Puppet {
 			dbPuppet = br.DB.Puppet.New()
 			dbPuppet.AccountID = puppetID.AccountID
 			dbPuppet.ContactID = puppetID.ContactID
+			dbPuppet.NameOverride = puppetID.NameOverride
 		}
 
 		puppet = br.NewPuppet(dbPuppet)
@@ -89,7 +105,7 @@ func (br *DeltaChatBridge) GetPuppetByID(puppetID database.PuppetID) *Puppet {
 }
 
 func (br *DeltaChatBridge) FormatPuppetMXID(puppetID database.PuppetID) id.UserID {
-	return id.NewUserID(
+	return id.NewEncodedUserID(
 		br.Config.Bridge.FormatUsername(puppetID.String()),
 		br.Config.Homeserver.Domain,
 	)
@@ -132,7 +148,13 @@ func (puppet *Puppet) Update() error {
 
 	intent := puppet.DefaultIntent()
 
+	// quick hack to force name
+	if puppet.NameOverride != "" {
+		snap.NameAndAddr = "~" + puppet.NameOverride
+	}
+
 	updateName := puppet.Name != snap.NameAndAddr
+
 	if updateName {
 		puppet.Name = snap.NameAndAddr
 		puppet.NameSet = true
